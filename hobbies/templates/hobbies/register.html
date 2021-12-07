@@ -98,24 +98,22 @@
             "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
               .value,
           },
-        })
-          .then(function (response) {
-            if (response.redirected) {
-              window.location.href = response.url;
-              console.log(response.url);
-              return;
-            } else {
-              console.log(false);
-            }
-          })
-          .then((response) => response.json())
-          .then((data) => {
-            if (data["status"] == "1") {
-              alert("This username is already in use!");
-            } else if (data["status"] == "2") {
-              alert("This email is already in use!");
-            }
-          });
+        }).then(function (response) {
+          if (response.redirected) {
+            window.location.href = response.url;
+            return;
+          } else {
+            response.json().then((data) => {
+              if (data["status"] == "1") {
+                alert("This username is already in use!");
+              } else if (data["status"] == "2") {
+                alert("This email is already in use!");
+              } else {
+                alert("Something went wrong!");
+              }
+            });
+          }
+        });
       },
     },
   });

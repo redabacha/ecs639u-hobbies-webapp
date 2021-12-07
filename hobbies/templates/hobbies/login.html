@@ -88,10 +88,9 @@
         }).then(function (response) {
           if (response.redirected) {
             window.location.href = response.url;
-            console.log(response.url);
             return;
           } else {
-            console.log(false);
+            alert("The email and/or password are incorrect.");
           }
         });
       },
