@@ -1,0 +1,112 @@
+<link
+  rel="stylesheet"
+  href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+  integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
+  crossorigin="anonymous"
+/>
+<script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+
+{% if user.is_authenticated %}
+<div id="app" class="container-fluid">
+  {% csrf_token %}
+  <div class="row">
+    <nav class="navbar navbar-light bg-light w-100">
+      <span class="navbar-brand mb-0 h1">My Profile</span>
+      <button @click="logOut()" class="btn btn-danger float-right">Log Out</button>
+    </nav>
+  </div>
+  <div class="row">
+    <div class="col-7 mt-5 ml-auto mr-auto pb-5 bg-light text-center">
+        <img v-bind:src="imageUrl" alt="Profile picture" class="rounded mx-auto mt-5 mb-3" style="display: block; max-width: 200px"></img>
+        <input class="mb-2 w-50" type="url" placeholder="Image address" v-model="imageUrl"></input>
+        <div style="display: block;">
+        <input type="text" placeholder="Username" v-model="name"></input>
+        <input type="email" placeholder="Email" v-model="email"></input>
+        <input type="text" placeholder="City" v-model="city"></input>
+        <input type="date" v-model="date"></input>
+        <div>
+        <button @click="updateUser()" class="btn btn-primary mx-auto mt-5" style="display: block;">Update Information</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
+<script>
+  let myApp = new Vue({
+    el: "#app",
+    delimiters: ["[[", "]]"],
+    data() {
+      return {
+        name: "",
+        email: "",
+        city: "",
+        date: "",
+        imageUrl: "",
+        api: ""
+      };
+    },
+    async created() {
+      let response = await fetch(`{% url 'user api' user.id%}`, {
+        method: "GET",
+      }).then(response => response.json()).then(data => {
+        this.$data.name = data.username;
+        this.$data.email = data.email;
+        this.$data.city = data.city;
+        year = (new Date(data.date)).getFullYear()
+        month = (new Date(data.date)).getMonth()
+        month+=1
+        if (month < 10){
+            month = '0' + month
+        }
+        date = (new Date(data.date)).getDate()
+        if (date < 10){
+            date = '0' + date
+        }
+        this.$data.date = year + "-" + month + "-" + date
+        this.$data.imageUrl = data.url;
+        this.$data.api = data.api;
+      });
+    },
+    methods: {
+      async updateUser(user) {
+        const data = {
+          name: this.$data.name,
+          email: this.$data.email,
+          city: this.$data.city,
+          date: this.$data.date,
+          url: this.$data.imageUrl
+        };
+        fetch(this.$data.api, {
+          method: "PUT",
+          headers: {
+            "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
+              .value,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        });
+      },
+      async logOut(user){
+        fetch(this.$data.api, {
+            method: "POST",
+            headers: {
+              "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
+                .value,
+              "Content-Type": "application/json",
+            },
+          }).then(function (response) {
+            if (response.redirected) {
+              window.location.href = response.url;
+              console.log(response.url);
+              return;
+            } else {
+              console.log(false);
+            }
+          })
+      }
+    },
+  });
+</script>
+{% endblock %}
+

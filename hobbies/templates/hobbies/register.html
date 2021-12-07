@@ -1,0 +1,123 @@
+<link
+  rel="stylesheet"
+  href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+  integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
+  crossorigin="anonymous"
+/>
+<script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+
+{% if not user.is_authenticated %}
+<div id="alert" class="alert alert-danger d-none" role="alert">
+  That username is already in use!
+</div>
+<form id="app" class="col-3 mt-5 ml-auto mr-auto">
+  {% csrf_token %}
+  <div class="form-group">
+    <label>Username</label>
+    <input
+      type="name"
+      v-model="username"
+      class="form-control"
+      id="nameInput"
+      placeholder="Username"
+      required
+    />
+  </div>
+  <div class="form-group">
+    <label>Email address</label>
+    <input
+      type="email"
+      v-model="email"
+      class="form-control"
+      id="emailInput"
+      placeholder="Email address"
+      required
+    />
+  </div>
+  <div class="form-group">
+    <label>Password</label>
+    <input
+      type="password"
+      v-model="password"
+      class="form-control"
+      id="passwordInput"
+      placeholder="Password"
+      required
+    />
+  </div>
+  <button
+    v-on:click.self.prevent
+    @click="createUser()"
+    type="submit"
+    class="btn btn-success"
+  >
+    Register
+  </button>
+  <hr class="mb-1" />
+  <div class="form-group">
+    <p>Already have an account? <a href="../login">Sign in</a></p>
+  </div>
+</form>
+{% endif %} {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
+<script>
+  let myApp = new Vue({
+    el: "#app",
+    delimiters: ["[[", "]]"],
+    data() {
+      return {
+        username: "",
+        email: "",
+        password: "",
+      };
+    },
+    async created() {
+      let response = await fetch("{% url 'check auth'%}").then(function (
+        response
+      ) {
+        if (response.redirected) {
+          window.location.href = response.url;
+          console.log(response.url);
+          return;
+        } else {
+          console.log(false);
+        }
+      });
+    },
+    methods: {
+      async createUser() {
+        const data = {
+          username: this.$data.username,
+          email: this.$data.email,
+          password: this.$data.password,
+        };
+        response = await fetch(`{% url 'users api'%}`, {
+          method: "POST",
+          body: JSON.stringify(data),
+          headers: {
+            "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
+              .value,
+          },
+        })
+          .then(function (response) {
+            if (response.redirected) {
+              window.location.href = response.url;
+              console.log(response.url);
+              return;
+            } else {
+              console.log(false);
+            }
+          })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data["status"] == "1") {
+              alert("This username is already in use!");
+            } else if (data["status"] == "2") {
+              alert("This email is already in use!");
+            }
+          });
+      },
+    },
+  });
+</script>
+{% endblock %}
