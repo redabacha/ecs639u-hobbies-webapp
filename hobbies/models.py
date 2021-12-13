@@ -9,6 +9,12 @@ from django.urls import reverse
 class Hobby(models.Model):
     name = models.TextField(max_length=200)
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name
+        }
+
 
 class User(AbstractUser):
     username = models.TextField(max_length=200, unique=True)
@@ -20,6 +26,14 @@ class User(AbstractUser):
     hobbies = models.ManyToManyField(Hobby)
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
+
+    def getHobbies(self):
+        hobbies = []
+        for h1 in Hobby.objects.all():
+            for h2 in self.hobbies.all():
+                if h1 == h2:
+                    hobbies.append(h1)
+        return hobbies
 
     def to_dict(self):
         return {

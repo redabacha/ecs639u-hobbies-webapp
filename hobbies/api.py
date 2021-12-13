@@ -64,8 +64,37 @@ def user_api(request, user_id):
         user.city = body['city']
         user.birthday = body['date']
         user.img = body['url']
+        add = body['add']
+        for hobby_id in add:
+            hobby = get_object_or_404(Hobby, id=hobby_id)
+            user.hobbies.add(hobby)
+        remove = body['remove']
+        for hobby_id in remove:
+            hobby = get_object_or_404(Hobby, id=hobby_id)
+            user.hobbies.remove(hobby)
         user.save()
         return JsonResponse({})
     if request.method == "POST":
         logout(request)
         return HttpResponseRedirect(reverse('login'))
+
+
+def hobbies_api(request, user_id):
+    if request.method == "GET":
+        user = get_object_or_404(User, id=user_id)
+        return JsonResponse({
+            'hobbies': [
+                hobby.to_dict()
+                for hobby in user.getHobbies()
+            ],
+            'all_hobbies_outside': [
+                hobby.to_dict()
+                for hobby in list(set(Hobby.objects.all()).difference(user.getHobbies()))
+            ],
+        })
+    if request.method == "POST":
+        body = json.loads(request.body)
+        newHobby = Hobby.objects.create(
+            name=body["name"])
+        newHobby.save()
+        return JsonResponse({'id': newHobby.id})

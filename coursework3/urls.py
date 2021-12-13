@@ -15,7 +15,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from hobbies.api import users_api, user_auth_api, check_auth, user_api
+from hobbies.api import users_api, user_auth_api, check_auth, user_api, hobbies_api
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -24,4 +24,5 @@ urlpatterns = [
     path('authenticate_user/', user_auth_api, name="user auth api"),
     path('check_auth/', check_auth, name="check auth"),
     path('api/user/<int:user_id>/', user_api, name="user api"),
+    path('api/hobbies/<int:user_id>/', hobbies_api, name="hobbies api"),
 ]

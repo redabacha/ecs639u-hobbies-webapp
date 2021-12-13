@@ -20,11 +20,37 @@
         <img v-bind:src="imageUrl" alt="Profile picture" class="rounded mx-auto mt-5 mb-3" style="display: block; max-width: 200px"></img>
         <input class="mb-2 w-50" type="url" placeholder="Image address" v-model="imageUrl"></input>
         <div style="display: block;">
-        <input type="text" placeholder="Username" v-model="name"></input>
-        <input type="email" placeholder="Email" v-model="email"></input>
-        <input type="text" placeholder="City" v-model="city"></input>
-        <input type="date" v-model="date"></input>
-        <div>
+          <input type="text" placeholder="Username" v-model="name"></input>
+          <input type="email" placeholder="Email" v-model="email"></input>
+          <input type="text" placeholder="City" v-model="city"></input>
+          <input type="date" v-model="date"></input>
+        </div>
+
+        <label f style="margin-left: 5px; margin-top: 20px;">Select hobbies you want to <b>add</b> to your profile</label>
+        <select style="width: 50%; margin: auto" v-model="selectedAdd" class="form-control" multiple>
+          <option
+            :id="hobby.id"
+            :value="hobby.id"
+            v-for="hobby in all_hobbies"
+          >
+            [[hobby.name]]
+          </option>
+        </select>
+        <div style="display: block;">
+          <input v-model="newHobby" placeholder="Add a new hobby" style="display: inline-block; margin: auto; width: 40%; border: 1px solid light; border-radius: 3px;"> </input>
+          <button @click="addHobby()" style="display: inline-block;">Add</button>
+        </div>
+        <label f style="margin-left: 5px; margin-top: 10px;">Select hobbies you want to <b>remove</b> from your profile</label>
+        <select style="width: 50%; margin: auto" v-model="selectedRemove" class="form-control" multiple>
+          <option
+            :id="hobby.id"
+            :value="hobby.id"
+            v-for="hobby in user_hobbies"
+          >
+            [[hobby.name]]
+          </option>
+        </select>
+
         <button @click="updateUser()" class="btn btn-primary mx-auto mt-5" style="display: block;">Update Information</button>
     </div>
   </div>
@@ -43,7 +69,12 @@
         city: "",
         date: "",
         imageUrl: "",
-        api: ""
+        api: "",
+        user_hobbies: [],
+        all_hobbies: [],
+        selectedAdd: [],
+        selectedRemove: [],
+        newHobby: "",
       };
     },
     async created() {
@@ -67,17 +98,75 @@
         this.$data.imageUrl = data.url;
         this.$data.api = data.api;
       });
+
+      let response2 = await fetch(`{% url 'hobbies api' user.id%}`, {
+        method: "GET",
+      });
+      if(response2.ok){
+        let data = await response2.json();
+        this.$data.user_hobbies = data.hobbies;
+        this.$data.all_hobbies = data.all_hobbies_outside;
+      }
     },
     methods: {
+      async addHobby(){
+        if(this.$data.newHobby == "") return;
+        const data = {
+          name: this.$data.newHobby
+        };
+
+        response = await fetch(`{% url 'hobbies api' user.id%}`, {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
+              .value,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        }).then(response => response.json()).then(data => {
+          id = data["id"];
+          let newObject = {'id': id, 'name': this.$data.newHobby};
+          this.$data.all_hobbies.push(newObject);
+        });
+
+        this.$data.newHobby = "";
+      },
       async updateUser(user) {
         const data = {
           name: this.$data.name,
           email: this.$data.email,
           city: this.$data.city,
           date: this.$data.date,
-          url: this.$data.imageUrl
+          url: this.$data.imageUrl,
+          add: this.$data.selectedAdd,
+          remove: this.$data.selectedRemove,
         };
-        fetch(this.$data.api, {
+
+        hobbiesArray = this.all_hobbies.concat(this.user_hobbies);
+        addArray = [];
+        removeArray = [];
+
+        for(var i in hobbiesArray){
+          for(j in data.add){
+            if(hobbiesArray[i].id == data.add[j]){
+              addArray.push(hobbiesArray[i]);
+            }
+          }
+        }
+        for(var i in hobbiesArray){
+          for(j in data.remove){
+            if(hobbiesArray[i].id == data.remove[j]){
+              removeArray.push(hobbiesArray[i]);
+            }
+          }
+        }
+
+        this.user_hobbies = this.user_hobbies.filter(x => !removeArray.includes(x));
+        this.all_hobbies = this.all_hobbies.filter(x => !addArray.includes(x));
+        this.all_hobbies = this.all_hobbies.concat(removeArray);
+        this.user_hobbies = this.user_hobbies.concat(addArray);
+        
+        response = await fetch(this.$data.api, {
           method: "PUT",
           headers: {
             "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
@@ -86,6 +175,9 @@
           },
           body: JSON.stringify(data),
         });
+
+        this.$data.selectedAdd = [];
+        this.$data.selectedRemove = [];
       },
       async logOut(user){
         fetch(this.$data.api, {
