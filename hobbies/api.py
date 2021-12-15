@@ -17,6 +17,7 @@ def user_auth_api(request):
     if request.method == "POST":
         body = json.loads(request.body)
         user = authenticate(request, email=body["email"], password=body["password"])
+
         if user is not None:
             login(request, user)
             return HttpResponsePermanentRedirect(reverse("profile"))
