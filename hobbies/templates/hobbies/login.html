@@ -50,49 +50,42 @@
 {% endif %} {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
 <script>
-  let myApp = new Vue({
-    el: "#app",
-    delimiters: ["[[", "]]"],
+  new Vue({
+    el: '#app',
+    delimiters: ['[[', ']]'],
     data() {
       return {
-        email: "",
-        password: "",
+        email: '',
+        password: '',
       };
     },
     async created() {
-      let response = await fetch("{% url 'check auth'%}").then(function (
-        response
-      ) {
-        if (response.redirected) {
-          window.location.href = response.url;
-          console.log(response.url);
-          return;
-        } else {
-          console.log(false);
-        }
-      });
+      const res = await fetch("{% url 'check auth'%}");
+
+      if (res.redirected) {
+        window.location.href = res.url;
+      }
     },
     methods: {
       async validateUser() {
-        const data = {
-          email: this.$data.email,
-          password: this.$data.password,
-        };
-        response = await fetch(`{% url 'user auth api'%}`, {
-          method: "POST",
-          body: JSON.stringify(data),
+        const res = await fetch(`{% url 'user auth api'%}`, {
+          method: 'POST',
+          body: JSON.stringify({
+            email: this.$data.email,
+            password: this.$data.password,
+          }),
           headers: {
-            "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
+            'content-type': 'application/json',
+            'x-csrftoken': document.querySelector('[name=csrfmiddlewaretoken]')
               .value,
           },
-        }).then(function (response) {
-          if (response.redirected) {
-            window.location.href = response.url;
-            return;
-          } else {
-            alert("The email and/or password are incorrect.");
-          }
         });
+
+        if (res.redirected) {
+          window.location.href = res.url;
+        } else {
+          alert('The email and/or password are incorrect.');
+        }
       },
     },
   });
