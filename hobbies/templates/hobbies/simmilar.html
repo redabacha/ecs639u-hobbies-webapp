@@ -1,0 +1,76 @@
+<link
+  rel="stylesheet"
+  href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+  integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
+  crossorigin="anonymous"
+/>
+<script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+
+{% if user.is_authenticated %} {% block contents %}
+<div id="app" class="container-fluid">
+  {% csrf_token %}
+  <div style="margin-top: 10px">
+    <a>Filter by City: </a><input v-model="filterValueCity" v-on:keyup.enter="filterCity"></input>
+  </div>
+  <table class="table" style="margin-top: 10px;">
+    <thead>
+      <tr>
+        <th scope="col">#</th>
+        <th scope="col">Name</th>
+        <th scope="col">Email</th>
+        <th scope="col">City</th>
+        <th scope="col">Birthday</th>
+        <th scope="col">Common Hobbies (#)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr v-for="user in filteredUsers">
+        <th scope="row">[[user.id]]</th>
+        <td>[[user.username]]</td>
+        <td>[[user.email]]</td>
+        <td>[[user.city]]</td>
+        <td>[[user.date]]</td>
+        <td>[[user.common]]</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+{%endblock%} {% endif %} {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
+<script>
+  let myApp = new Vue({
+    el: "#app",
+    delimiters: ["[[", "]]"],
+    data() {
+      return {
+        users: [],
+        filteredUsers: [],
+        filterValueCity: "",
+      };
+    },
+    async created() {
+      let response = await fetch(`{% url 'users hobbies api' user.id%}`, {
+        method: "GET",
+      });
+      if (response.ok) {
+        let data = await response.json();
+        this.$data.users = data.users;
+        this.$data.filteredUsers = data.users;
+      }
+    },
+    methods: {
+        async filterCity() {
+            users = this.$data.users;
+            filterValueCity = this.$data.filterValueCity;
+            if(filterValueCity == ""){
+                this.$data.filteredUsers = users;
+                return;
+            }
+            this.$data.filteredUsers = users.filter(function(user) {
+                return user.city == filterValueCity
+            });
+        }
+    },
+  });
+</script>
+{% endblock %}

@@ -13,3 +13,7 @@ def login(request):
 
 def profile(request):
     return render(request, 'hobbies/profile.html')
+
+
+def simmilar(request):
+    return render(request, 'hobbies/simmilar.html')

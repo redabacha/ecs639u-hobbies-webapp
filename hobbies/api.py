@@ -12,7 +12,6 @@ import json
 
 @csrf_exempt
 def user_auth_api(request):
-
     if request.method == "POST":
         body = json.loads(request.body)
         email = body['email']
@@ -98,3 +97,28 @@ def hobbies_api(request, user_id):
             name=body["name"])
         newHobby.save()
         return JsonResponse({'id': newHobby.id})
+
+
+def myFunc(list):
+    return list['common']
+
+
+def users_hobbies_api(request, user_id):
+    users = []
+    for user in User.objects.all():
+        if(user.id == user_id):
+            continue
+        mainUserHobbies = get_object_or_404(User, id=user_id).hobbies.all()
+        currentUserHobbies = user.hobbies.all()
+        common = [value for value in mainUserHobbies if value in currentUserHobbies]
+        obj = user.to_dict()
+        obj['common'] = len(common)
+        obj['date'] = obj['date'].date()
+        users.append(obj)
+    users.sort(reverse=True, key=myFunc)
+    return JsonResponse({
+        'users': [
+            user
+            for user in users
+        ]
+    })
