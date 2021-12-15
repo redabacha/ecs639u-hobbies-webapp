@@ -5,6 +5,7 @@ from .models import Hobby, User
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
+from datetime import date
 
 
 import json
@@ -114,6 +115,10 @@ def users_hobbies_api(request, user_id):
         obj = user.to_dict()
         obj['common'] = len(common)
         obj['date'] = obj['date'].date()
+        today = date.today()
+        age = today.year - obj['date'].year - \
+            ((today.month, today.day) < (obj['date'].month, obj['date'].day))
+        obj['age'] = age
         users.append(obj)
     users.sort(reverse=True, key=myFunc)
     return JsonResponse({

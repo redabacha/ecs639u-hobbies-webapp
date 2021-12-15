@@ -91,6 +91,15 @@
           email: this.$data.email,
           password: this.$data.password,
         };
+        if (data.username == "" || data.email == "" || data.password == "") {
+          alert("Please fill in all the fields!");
+          return;
+        }
+        var test = /\S+@\S+\.\S+/;
+        if (!String(data.email).toLowerCase().match(test)) {
+          alert("Please enter a valid email address!");
+          return;
+        }
         response = await fetch(`{% url 'users api'%}`, {
           method: "POST",
           body: JSON.stringify(data),

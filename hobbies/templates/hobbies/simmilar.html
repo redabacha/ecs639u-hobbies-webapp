@@ -10,7 +10,10 @@
 <div id="app" class="container-fluid">
   {% csrf_token %}
   <div style="margin-top: 10px">
-    <a>Filter by City: </a><input v-model="filterValueCity" v-on:keyup.enter="filterCity"></input>
+    <a>Filter by City: </a><input v-model="filterValueCity" v-on:keyup.enter="filterCity" placeholder="Press enter to filter"></input>
+  </div>
+  <div style="margin-top: 10px; float right">
+    <a>Filter by age: </a><input v-on:keyup.enter="filterAge" v-model="filterAgeMin" style="text-align: center; margin-right: 10px; width:40px;"></input><input v-on:keyup.enter="filterAge" v-model="filterAgeMax" style="text-align: center;  margin-right: 10px; width:40px;"></input>
   </div>
   <table class="table" style="margin-top: 10px;">
     <thead>
@@ -19,7 +22,7 @@
         <th scope="col">Name</th>
         <th scope="col">Email</th>
         <th scope="col">City</th>
-        <th scope="col">Birthday</th>
+        <th scope="col">Age</th>
         <th scope="col">Common Hobbies (#)</th>
       </tr>
     </thead>
@@ -29,7 +32,7 @@
         <td>[[user.username]]</td>
         <td>[[user.email]]</td>
         <td>[[user.city]]</td>
-        <td>[[user.date]]</td>
+        <td>[[user.age]]</td>
         <td>[[user.common]]</td>
       </tr>
     </tbody>
@@ -46,6 +49,8 @@
         users: [],
         filteredUsers: [],
         filterValueCity: "",
+        filterAgeMin: 0,
+        filterAgeMax: 150
       };
     },
     async created() {
@@ -68,6 +73,21 @@
             }
             this.$data.filteredUsers = users.filter(function(user) {
                 return user.city == filterValueCity
+            });
+        },
+
+        async filterAge(){
+            users = this.$data.users;
+            filterMin = this.$data.filterAgeMin;
+            filterMax = this.$data.filterAgeMax;
+            if(filterMin == ""){
+                this.$data.filterMin = 0;
+            }
+            if(filterMax == ""){
+                this.$data.filterMax = 150;
+            }
+            this.$data.filteredUsers = users.filter(function(user) {
+                return user.age >= filterMin && user.age <= filterMax;
             });
         }
     },
