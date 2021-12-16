@@ -3,8 +3,6 @@ from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
 from django.urls import reverse
 
-# Create your models here.
-
 
 class Hobby(models.Model):
     name = models.TextField(max_length=200)
@@ -18,26 +16,20 @@ class User(AbstractUser):
     REQUIRED_FIELDS = ["username"]
 
     email = models.EmailField(max_length=200, unique=True)
-    img = models.URLField(max_length=200)
-    city = models.TextField(max_length=200)
-    birthday = models.DateTimeField(default=timezone.now)
+    birthday = models.DateField(blank=True, null=True)
+    city = models.TextField(blank=True, null=True, max_length=200)
+    profile_image_url = models.URLField(blank=True, null=True, max_length=200)
     hobbies = models.ManyToManyField(Hobby)
 
-    def getHobbies(self):
-        hobbies = []
-        for h1 in Hobby.objects.all():
-            for h2 in self.hobbies.all():
-                if h1 == h2:
-                    hobbies.append(h1)
-        return hobbies
+    def get_hobbies(self):
+        return self.hobbies.all()
 
     def to_dict(self):
         return {
             "id": self.id,
-            "url": self.img,
             "username": self.username,
             "email": self.email,
-            "date": self.birthday,
+            "birthday": self.birthday,
             "city": self.city,
-            "api": reverse("user api", kwargs={"user_id": self.id}),
+            "profile_image_url": self.profile_image_url,
         }

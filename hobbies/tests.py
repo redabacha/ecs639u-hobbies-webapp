@@ -3,7 +3,7 @@ from django.test import TestCase
 from django.test.client import Client
 from django.urls.base import reverse
 
-from hobbies.models import User
+from .models import User
 
 
 class LoginTestCase(TestCase):
@@ -41,3 +41,16 @@ class LoginTestCase(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+    def test_authenticated_user(self):
+        self.client.login(email="test@test.com", password="test")
+        response = self.client.get(reverse("check auth"))
+
+        self.assertRedirects(response, reverse("profile"), status_code=302)
+
+    def test_non_authenticated_user(self):
+        self.client.logout()
+        response = self.client.get(reverse("check auth"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"")

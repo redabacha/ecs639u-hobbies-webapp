@@ -1,204 +1,144 @@
-<link
-  rel="stylesheet"
-  href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
-  integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
-  crossorigin="anonymous"
-/>
-<script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+{% extends 'hobbies/base.html' %} {% block content %}
+<div id="app">
+  <nav class="navbar navbar-light bg-light">
+    <span class="navbar-brand mb-0 ms-3 h1">My Profile</span>
+    <button @click="logout()" class="btn btn-danger float-right me-3">
+      Log Out
+    </button>
+  </nav>
+  <div class="col-7 mt-5 mx-auto p-3 bg-light text-center">
+    <img
+      v-bind:src="user.profile_image_url"
+      alt="Profile picture"
+      class="rounded mx-auto mb-3"
+      style="display: block; max-width: 200px"
+    />
+    <input
+      class="mb-2 w-50"
+      type="url"
+      placeholder="Image address"
+      v-model="user.profile_image_url"
+    />
 
-{% if user.is_authenticated %}
-<div id="app" class="container-fluid">
-  {% csrf_token %}
-  <div class="row">
-    <nav class="navbar navbar-light bg-light w-100">
-      <span class="navbar-brand mb-0 h1">My Profile</span>
-      <button @click="logOut()" class="btn btn-danger float-right">Log Out</button>
-    </nav>
-  </div>
-  <div class="row">
-    <div class="col-7 mt-5 ml-auto mr-auto pb-5 bg-light text-center">
-        <img v-bind:src="imageUrl" alt="Profile picture" class="rounded mx-auto mt-5 mb-3" style="display: block; max-width: 200px"></img>
-        <input class="mb-2 w-50" type="url" placeholder="Image address" v-model="imageUrl"></input>
-        <div style="display: block;">
-          <input type="text" placeholder="Username" v-model="name"></input>
-          <input type="email" placeholder="Email" v-model="email"></input>
-          <input type="text" placeholder="City" v-model="city"></input>
-          <input type="date" v-model="date"></input>
-        </div>
-
-        <label f style="margin-left: 5px; margin-top: 20px;">Select hobbies you want to <b>add</b> to your profile</label>
-        <select style="width: 50%; margin: auto" v-model="selectedAdd" class="form-control" multiple>
-          <option
-            :id="hobby.id"
-            :value="hobby.id"
-            v-for="hobby in all_hobbies"
-          >
-            [[hobby.name]]
-          </option>
-        </select>
-        <div style="display: block;">
-          <input v-model="newHobby" placeholder="Add a new hobby" style="display: inline-block; margin: auto; width: 42.5%;"> </input>
-          <button @click="addHobby()" class="btn btn-primary" style="display: inline-block;">Add</button>
-        </div>
-        <label f style="margin-left: 5px; margin-top: 10px;">Select hobbies you want to <b>remove</b> from your profile</label>
-        <select style="width: 50%; margin: auto" v-model="selectedRemove" class="form-control" multiple>
-          <option
-            :id="hobby.id"
-            :value="hobby.id"
-            v-for="hobby in user_hobbies"
-          >
-            [[hobby.name]]
-          </option>
-        </select>
-
-        <button @click="updateUser()" class="btn btn-primary mx-auto mt-5" style="display: block;">Update Information</button>
+    <div>
+      <input type="text" placeholder="Username" v-model="user.username" />
+      <input type="email" placeholder="Email" v-model="user.email" />
+      <input type="text" placeholder="City" v-model="user.city" />
+      <input type="date" v-model="user.birthday" />
     </div>
+
+    <label class="mt-3"
+      >Select hobbies you want to <b>add</b> to your profile</label
+    >
+    <select v-model="selectedHobbiesAdd" class="form-control" multiple>
+      <option :id="hobby.id" :value="hobby.id" v-for="hobby in otherHobbies">
+        [[hobby.name]]
+      </option>
+    </select>
+
+    <form @submit.prevent="addHobby()" class="input-group col-sm-3">
+      <input
+        class="form-control"
+        v-model="newHobbyName"
+        placeholder="Add a new hobby"
+      />
+      <button type="submit" class="btn btn-primary">Add</button>
+    </form>
+
+    <label class="mt-3"
+      >Select hobbies you want to <b>remove</b> from your profile</label
+    >
+    <select v-model="selectedHobbiesRemove" class="form-control" multiple>
+      <option :id="hobby.id" :value="hobby.id" v-for="hobby in hobbies">
+        [[hobby.name]]
+      </option>
+    </select>
+
+    <button @click="updateProfile()" class="btn btn-primary mx-auto mt-5">
+      Update Information
+    </button>
   </div>
 </div>
-{% endif %}
-{% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
-<script>
-  let myApp = new Vue({
-    el: "#app",
-    delimiters: ["[[", "]]"],
+{% endblock content %} {% block scripts %}
+<script type="module">
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  const app = Vue.createApp({
     data() {
       return {
-        name: "",
-        email: "",
-        city: "",
-        date: "",
-        imageUrl: "",
-        api: "",
-        user_hobbies: [],
-        all_hobbies: [],
-        selectedAdd: [],
-        selectedRemove: [],
-        newHobby: "",
+        user: undefined,
+        newHobbyName: undefined,
+        hobbies: [],
+        otherHobbies: [],
+        selectedHobbiesAdd: [],
+        selectedHobbiesRemove: [],
       };
     },
     async created() {
-      let response = await fetch(`{% url 'user api' user.id%}`, {
-        method: "GET",
-      }).then(response => response.json()).then(data => {
-        this.$data.name = data.username;
-        this.$data.email = data.email;
-        this.$data.city = data.city;
-        year = (new Date(data.date)).getFullYear()
-        month = (new Date(data.date)).getMonth()
-        month+=1
-        if (month < 10){
-            month = '0' + month
-        }
-        date = (new Date(data.date)).getDate()
-        if (date < 10){
-            date = '0' + date
-        }
-        this.$data.date = year + "-" + month + "-" + date
-        this.$data.imageUrl = data.url;
-        this.$data.api = data.api;
-      });
-
-      let response2 = await fetch(`{% url 'hobbies api' user.id%}`, {
-        method: "GET",
-      });
-      if(response2.ok){
-        let data = await response2.json();
-        this.$data.user_hobbies = data.hobbies;
-        this.$data.all_hobbies = data.all_hobbies_outside;
-      }
+      await this.loadProfile();
     },
     methods: {
-      async addHobby(){
-        if(this.$data.newHobby == "") return;
-        const data = {
-          name: this.$data.newHobby
-        };
+      async loadProfile() {
+        const [user, { hobbies, other_hobbies }] = await Promise.all([
+          fetch(`{% url 'user api' user.id %}`).then(res => res.json()),
+          fetch(`{% url 'user hobbies api' user.id %}`).then(res => res.json()),
+        ]);
 
-        response = await fetch(`{% url 'hobbies api' user.id%}`, {
-          method: "POST",
-          headers: {
-            "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
-              .value,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        }).then(response => response.json()).then(data => {
-          id = data["id"];
-          let newObject = {'id': id, 'name': this.$data.newHobby};
-          this.$data.all_hobbies.push(newObject);
-        });
-
-        this.$data.newHobby = "";
+        this.user = user;
+        this.hobbies = hobbies;
+        this.otherHobbies = other_hobbies;
       },
-      async updateUser(user) {
-        const data = {
-          name: this.$data.name,
-          email: this.$data.email,
-          city: this.$data.city,
-          date: this.$data.date,
-          url: this.$data.imageUrl,
-          add: this.$data.selectedAdd,
-          remove: this.$data.selectedRemove,
-        };
-
-        hobbiesArray = this.all_hobbies.concat(this.user_hobbies);
-        addArray = [];
-        removeArray = [];
-
-        for(var i in hobbiesArray){
-          for(j in data.add){
-            if(hobbiesArray[i].id == data.add[j]){
-              addArray.push(hobbiesArray[i]);
-            }
-          }
-        }
-        for(var i in hobbiesArray){
-          for(j in data.remove){
-            if(hobbiesArray[i].id == data.remove[j]){
-              removeArray.push(hobbiesArray[i]);
-            }
-          }
+      async addHobby() {
+        if (!this.newHobbyName) {
+          return;
         }
 
-        this.user_hobbies = this.user_hobbies.filter(x => !removeArray.includes(x));
-        this.all_hobbies = this.all_hobbies.filter(x => !addArray.includes(x));
-        this.all_hobbies = this.all_hobbies.concat(removeArray);
-        this.user_hobbies = this.user_hobbies.concat(addArray);
-        
-        response = await fetch(this.$data.api, {
-          method: "PUT",
+        const hobby = await fetch(`{% url 'hobbies api' %}`, {
+          method: 'POST',
           headers: {
-            "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
-              .value,
-            "Content-Type": "application/json",
+            'content-type': 'application/json',
+            'x-csrftoken': csrfToken,
           },
-          body: JSON.stringify(data),
+          body: JSON.stringify({ name: this.newHobbyName }),
+        }).then(res => res.json());
+
+        this.otherHobbies.push(hobby);
+        this.newHobbyName = undefined;
+      },
+      async updateProfile() {
+        const { success } = await fetch(`{% url 'user api' user.id %}`, {
+          method: 'PUT',
+          headers: {
+            'content-type': 'application/json',
+            'x-csrftoken': csrfToken,
+          },
+          body: JSON.stringify({
+            ...this.user,
+            add_hobbies: this.selectedHobbiesAdd,
+            remove_hobbies: this.selectedHobbiesRemove,
+          }),
+        }).then(res => res.json());
+
+        if (success) {
+          this.selectedHobbiesAdd = [];
+          this.selectedHobbiesRemove = [];
+
+          await this.loadProfile();
+        }
+      },
+      async logout() {
+        const res = await fetch(`{% url 'auth logout api' %}`, {
+          method: 'POST',
+          headers: { 'x-csrftoken': csrfToken },
         });
 
-        this.$data.selectedAdd = [];
-        this.$data.selectedRemove = [];
+        if (res.redirected) {
+          window.location.href = res.url;
+        }
       },
-      async logOut(user){
-        fetch(this.$data.api, {
-            method: "POST",
-            headers: {
-              "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
-                .value,
-              "Content-Type": "application/json",
-            },
-          }).then(function (response) {
-            if (response.redirected) {
-              window.location.href = response.url;
-              console.log(response.url);
-              return;
-            } else {
-              console.log(false);
-            }
-          })
-      }
     },
   });
+  app.config.compilerOptions.delimiters = ['[[', ']]'];
+
+  app.mount('#app');
 </script>
 {% endblock %}
-

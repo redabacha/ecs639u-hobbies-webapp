@@ -1,3 +1,5 @@
+from datetime import date
+from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
 from django.http.response import (
     HttpResponse,
@@ -6,14 +8,21 @@ from django.http.response import (
     HttpResponseRedirect,
 )
 from django.shortcuts import get_object_or_404
-from .models import Hobby, User
-from django.contrib.auth import authenticate, login, logout
 from django.urls import reverse
-from datetime import date
 import json
 
+from .forms import NewUserForm, UpdateUserForm
+from .models import Hobby, User
 
-def user_auth_api(request):
+
+def auth_check_api(request):
+    if request.user.is_authenticated:
+        return HttpResponseRedirect(reverse("profile"))
+    else:
+        return HttpResponse()
+
+
+def auth_login_api(request):
     if request.method == "POST":
         body = json.loads(request.body)
         user = authenticate(request, email=body["email"], password=body["password"])
@@ -21,104 +30,101 @@ def user_auth_api(request):
         if user is not None:
             login(request, user)
             return HttpResponsePermanentRedirect(reverse("profile"))
-        else:
-            return HttpResponseBadRequest()
+
+        return HttpResponseBadRequest()
+
+
+def auth_logout_api(request):
+    if request.method == "POST":
+        logout(request)
+        return HttpResponseRedirect(reverse("login"))
 
 
 def users_api(request):
     if request.method == "POST":
-        body = json.loads(request.body)
-        username = body["username"]
-        email = body["email"]
-        password = body["password"]
+        user_form = NewUserForm(json.loads(request.body))
 
-        for user in User.objects.all():
-            if user.username == username:
-                return JsonResponse({"status": "1"})
-        for user in User.objects.all():
-            if user.email == email:
-                return JsonResponse({"status": "2"})
+        if not user_form.is_valid():
+            return JsonResponse({"errors": user_form.errors})
 
-        user = User.objects.create_user(
-            username=username, email=email, password=password
-        )
-        user.save()
+        User.objects.create_user(**user_form.cleaned_data)
         return HttpResponseRedirect(reverse("login"))
-
-
-def check_auth(request):
-    if request.user.is_authenticated:
-        return HttpResponseRedirect(reverse("profile"))
-    else:
-        return HttpResponse()
 
 
 def user_api(request, user_id):
     if request.method == "GET":
         user = get_object_or_404(User, id=user_id)
         return JsonResponse(user.to_dict())
+
     if request.method == "PUT":
-        user = get_object_or_404(User, id=user_id)
         body = json.loads(request.body)
-        user.username = body["name"]
-        user.email = body["email"]
-        user.city = body["city"]
-        user.birthday = body["date"]
-        user.img = body["url"]
-        add = body["add"]
-        for hobby_id in add:
+        user_form = UpdateUserForm(body, instance=get_object_or_404(User, id=user_id))
+
+        if not user_form.is_valid():
+            return JsonResponse({"errors": user_form.errors}, status=400)
+
+        user = user_form.save(commit=False)
+
+        for hobby_id in body["add_hobbies"]:
             hobby = get_object_or_404(Hobby, id=hobby_id)
             user.hobbies.add(hobby)
-        remove = body["remove"]
-        for hobby_id in remove:
+
+        for hobby_id in body["remove_hobbies"]:
             hobby = get_object_or_404(Hobby, id=hobby_id)
             user.hobbies.remove(hobby)
+
         user.save()
-        return JsonResponse({})
+
+        return JsonResponse({"success": True})
+
+
+def hobbies_api(request):
     if request.method == "POST":
-        logout(request)
-        return HttpResponseRedirect(reverse("login"))
+        body = json.loads(request.body)
+        new_hobby = Hobby.objects.create(name=body["name"])
+
+        return JsonResponse({"id": new_hobby.id, "name": new_hobby.name})
 
 
-def hobbies_api(request, user_id):
+def user_hobbies_api(request, user_id):
     if request.method == "GET":
         user = get_object_or_404(User, id=user_id)
+        user_hobbies = user.get_hobbies()
+
         return JsonResponse(
             {
-                "hobbies": [hobby.to_dict() for hobby in user.getHobbies()],
-                "all_hobbies_outside": [
+                "hobbies": [hobby.to_dict() for hobby in user_hobbies],
+                "other_hobbies": [
                     hobby.to_dict()
-                    for hobby in list(
-                        set(Hobby.objects.all()).difference(user.getHobbies())
-                    )
+                    for hobby in Hobby.objects.all().difference(user_hobbies)
                 ],
             }
         )
-    if request.method == "POST":
-        body = json.loads(request.body)
-        newHobby = Hobby.objects.create(name=body["name"])
-        newHobby.save()
-        return JsonResponse({"id": newHobby.id})
 
 
-def users_hobbies_api(request, user_id):
-    users = []
-    for user in User.objects.all():
-        if user.id == user_id:
-            continue
-        mainUserHobbies = get_object_or_404(User, id=user_id).hobbies.all()
-        currentUserHobbies = user.hobbies.all()
-        common = [value for value in mainUserHobbies if value in currentUserHobbies]
-        obj = user.to_dict()
-        obj["common"] = len(common)
-        obj["date"] = obj["date"].date()
+def user_similar_hobbies_api(request, user_id):
+    if request.method == "GET":
+        hobbies = get_object_or_404(User, id=user_id).hobbies.all()
         today = date.today()
-        age = (
-            today.year
-            - obj["date"].year
-            - ((today.month, today.day) < (obj["date"].month, obj["date"].day))
-        )
-        obj["age"] = age
-        users.append(obj)
-    users.sort(reverse=True, key=lambda list: list["common"])
-    return JsonResponse({"users": [user for user in users]})
+
+        results = []
+
+        for user in User.objects.all():
+            if user.id == user_id or not user.birthday:
+                continue
+
+            current_hobbies = user.hobbies.all()
+            common_hobbies = [hobby for hobby in hobbies if hobby in current_hobbies]
+
+            result = user.to_dict()
+            result["age"] = (
+                today.year
+                - user.birthday.year
+                - ((today.month, today.day) < (user.birthday.month, user.birthday.day))
+            )
+            result["common_hobbies"] = [hobby.to_dict() for hobby in common_hobbies]
+
+            results.append(result)
+
+        results.sort(reverse=True, key=lambda result: len(result["common_hobbies"]))
+        return JsonResponse({"results": results})

@@ -1,0 +1,80 @@
+{% extends 'hobbies/base.html' %} {% block content %}
+<div id="app" class="container-fluid">
+  <div style="margin-top: 10px">
+    <a>Filter by City: </a>
+    <input v-model="filter.city" />
+  </div>
+  <div style="margin-top: 10px">
+    <a>Filter by Age: </a>
+    <input
+      v-model="filter.minAge"
+      style="text-align: center; margin-right: 10px; width: 40px"
+    />
+    <input
+      v-model="filter.maxAge"
+      style="text-align: center; margin-right: 10px; width: 40px"
+    />
+  </div>
+  <table class="table" style="margin-top: 10px">
+    <thead>
+      <tr>
+        <th scope="col">#</th>
+        <th scope="col">Name</th>
+        <th scope="col">Email</th>
+        <th scope="col">City</th>
+        <th scope="col">Age</th>
+        <th scope="col">Common Hobbies</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr v-for="user in filteredUsers">
+        <th scope="row">[[user.id]]</th>
+        <td>[[user.username]]</td>
+        <td>[[user.email]]</td>
+        <td>[[user.city]]</td>
+        <td>[[user.age]]</td>
+        <td>[[user.common_hobbies.map(hobby => hobby.name).join(',')]]</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% endblock content %} {% block scripts %}
+<script>
+  const app = Vue.createApp({
+    data() {
+      return {
+        users: [],
+        filter: {
+          city: '',
+          minAge: 0,
+          maxAge: 150,
+        },
+      };
+    },
+    computed: {
+      filteredUsers() {
+        let users = this.users;
+
+        if (this.filter.city) {
+          users = users.filter(user => user.city === this.filter.city);
+        }
+
+        return users.filter(
+          user =>
+            user.age >= (this.filter.minAge ?? 0) &&
+            user.age <= (this.filter.maxAge ?? 150)
+        );
+      },
+    },
+    async created() {
+      const { results } = await fetch(
+        `{% url 'user similar hobbies api' user.id %}`
+      ).then(res => res.json());
+      this.users = results;
+    },
+  });
+  app.config.compilerOptions.delimiters = ['[[', ']]'];
+
+  app.mount('#app');
+</script>
+{% endblock %}
