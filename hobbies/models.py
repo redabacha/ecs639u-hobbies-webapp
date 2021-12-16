@@ -20,6 +20,7 @@ class User(AbstractUser):
     city = models.TextField(blank=True, null=True, max_length=200)
     profile_image_url = models.URLField(blank=True, null=True, max_length=200)
     hobbies = models.ManyToManyField(Hobby)
+    friends = models.ManyToManyField("self")
 
     def get_hobbies(self):
         return self.hobbies.all()
@@ -32,4 +33,18 @@ class User(AbstractUser):
             "birthday": self.birthday,
             "city": self.city,
             "profile_image_url": self.profile_image_url,
+        }
+
+
+class FriendRequest(models.Model):
+    from_user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="from_user"
+    )
+    to_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="to_user")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "from_user": self.from_user.to_dict(),
+            "to_user": self.to_user.to_dict(),
         }

@@ -12,7 +12,7 @@ from django.urls import reverse
 import json
 
 from .forms import NewUserForm, UpdateUserForm
-from .models import Hobby, User
+from .models import FriendRequest, Hobby, User
 
 
 def auth_check_api(request):
@@ -104,7 +104,8 @@ def user_hobbies_api(request, user_id):
 
 def user_similar_hobbies_api(request, user_id):
     if request.method == "GET":
-        hobbies = get_object_or_404(User, id=user_id).hobbies.all()
+        main_user = get_object_or_404(User, id=user_id)
+        main_hobbies = main_user.hobbies.all()
         today = date.today()
 
         results = []
@@ -114,7 +115,9 @@ def user_similar_hobbies_api(request, user_id):
                 continue
 
             current_hobbies = user.hobbies.all()
-            common_hobbies = [hobby for hobby in hobbies if hobby in current_hobbies]
+            common_hobbies = [
+                hobby for hobby in main_hobbies if hobby in current_hobbies
+            ]
 
             result = user.to_dict()
             result["age"] = (
@@ -123,8 +126,56 @@ def user_similar_hobbies_api(request, user_id):
                 - ((today.month, today.day) < (user.birthday.month, user.birthday.day))
             )
             result["common_hobbies"] = [hobby.to_dict() for hobby in common_hobbies]
+            result["is_friend"] = user.friends.filter(id=user_id).exists()
+            result["incoming_friend_request"] = (
+                FriendRequest.objects.filter(from_user=user, to_user=main_user)
+                .only("id")
+                .first()
+            )
+            result["outgoing_friend_request"] = (
+                FriendRequest.objects.filter(from_user=main_user, to_user=user)
+                .only("id")
+                .first()
+            )
+
+            if result["incoming_friend_request"]:
+                result["incoming_friend_request"] = result[
+                    "incoming_friend_request"
+                ].to_dict()
+
+            if result["outgoing_friend_request"]:
+                result["outgoing_friend_request"] = result[
+                    "outgoing_friend_request"
+                ].to_dict()
 
             results.append(result)
 
         results.sort(reverse=True, key=lambda result: len(result["common_hobbies"]))
         return JsonResponse({"results": results})
+
+
+def send_friend_request_api(request):
+    if request.method == "POST":
+        body = json.loads(request.body)
+
+        from_user = get_object_or_404(User, id=body["from_user_id"])
+        to_user = get_object_or_404(User, id=body["to_user_id"])
+
+        friend_request, _ = FriendRequest.objects.get_or_create(
+            from_user=from_user, to_user=to_user
+        )
+
+        return JsonResponse(friend_request.to_dict())
+
+
+def accept_friend_request_api(request):
+    if request.method == "POST":
+        friend_request = get_object_or_404(
+            FriendRequest, id=json.loads(request.body)["id"]
+        )
+
+        friend_request.from_user.friends.add(friend_request.to_user)
+        friend_request.to_user.friends.add(friend_request.from_user)
+        friend_request.delete()
+
+        return JsonResponse({"success": True})

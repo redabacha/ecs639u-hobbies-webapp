@@ -24,6 +24,7 @@
         <th scope="col">City</th>
         <th scope="col">Age</th>
         <th scope="col">Common Hobbies</th>
+        <th scope="col">Friend</th>
       </tr>
     </thead>
     <tbody>
@@ -34,12 +35,31 @@
         <td>[[user.city]]</td>
         <td>[[user.age]]</td>
         <td>[[user.common_hobbies.map(hobby => hobby.name).join(',')]]</td>
+        <td v-if="user.is_friend">Friends ✅</td>
+        <td v-else>
+          <div v-if="user.incoming_friend_request">
+            <button class="btn btn-primary" @click="acceptFriendRequest(user)">
+              Accept Friend Request
+            </button>
+          </div>
+          <div v-else>
+            <span v-if="user.outgoing_friend_request">Friend Request Sent</span>
+            <button
+              v-else
+              class="btn btn-primary"
+              @click="sendFriendRequest(user)"
+            >
+              Send Friend Request
+            </button>
+          </div>
+        </td>
       </tr>
     </tbody>
   </table>
 </div>
 {% endblock content %} {% block scripts %}
 <script>
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
   const app = Vue.createApp({
     data() {
       return {
@@ -67,10 +87,56 @@
       },
     },
     async created() {
-      const { results } = await fetch(
-        `{% url 'user similar hobbies api' user.id %}`
-      ).then(res => res.json());
-      this.users = results;
+      await this.loadUsers();
+    },
+    methods: {
+      async loadUsers() {
+        const { results } = await fetch(
+          `{% url 'user similar hobbies api' user.id %}`
+        ).then(res => res.json());
+        this.users = results;
+      },
+      async acceptFriendRequest(user) {
+        const { success } = await fetch(
+          `{% url 'accept friend request api' %}`,
+          {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'x-csrftoken': csrfToken,
+            },
+            body: JSON.stringify({
+              id: user.incoming_friend_request.id,
+            }),
+          }
+        ).then(res => res.json());
+
+        if (success) {
+          user.is_friend = true;
+          alert('Friend request accepted');
+        }
+      },
+      async sendFriendRequest(user) {
+        const friendRequest = await fetch(
+          `{% url 'send friend request api' %}`,
+          {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'x-csrftoken': csrfToken,
+            },
+            body: JSON.stringify({
+              from_user_id: Number(`{{ user.id }}`),
+              to_user_id: user.id,
+            }),
+          }
+        ).then(res => res.json());
+
+        if (friendRequest.id) {
+          user.outgoing_friend_request = friendRequest;
+          alert('Friend request sent');
+        }
+      },
     },
   });
   app.config.compilerOptions.delimiters = ['[[', ']]'];
